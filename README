@@ -1,0 +1,31 @@
+Nagios plugin for monitoring site-to-site VPNs on a Cisco ASA
+
+See: http://www.barkingseal.com/2009/08/monitoring-site-to-site-vpns-on-a-cisco-asa/
+
+----
+Virtual Private Networks (VPNs) offer a way to securely connect different locations that are both connected to the Internet. Internet VPNs are way cheaper than private lines leased from a telco company, but unfortunately they are often much less reliable. Many times, when an Internet VPN “drops”, distant offices are no longer able to communicate — as network administrators, we want to know so we can fix it before our users notice anything!
+
+This post shows one way to monitor site-to-site VPNs configured on a Cisco ASA firewall using SNMP and Nagios.
+
+
+First, if you’re only managing a handful of VPN tunnels on a couple ASAs, it’s probably easiest to just enable email notifications in the ASA’s ASDM management GUI. Make sure you’ll be able to receive the email even when the VPN is down, and be sure to test.
+
+For larger networks, or any network where availability is critical, it makes sense to monitor your systems with some kind of network management tool. I’m a firm believer that most monitoring tools can do a reasonable job, if they are configured correctly. I also believe there is no such thing as a self-configuring monitoring system (autodiscovery is a panacea that hasn’t been realized). If you’re going to be paging your IT staff about something, it should probably have been configured by a human.
+
+I think open source software is a natual fit for system and infrastracture monitoring, and one well-established option is Nagios. Let me repeat that I really don’t have a loyalty to a specific tool, even the most expensive commercial tools take a lot of manual configuration work.
+
+The ASA exposes a list of established site-to-site VPNs via the SNMP protocol… you can look at the list of Peer IPs for established VPNs using the command:
+
+snmpwalk -v1 -c YourSNMPCommunity 192.168.1.254 \
+    1.3.6.1.4.1.9.9.171.1.2.3.1.7
+Where YourSNMPCommunity is the community string you configured on the ASA, and 192.168.1.254 is the ASA’s IP address.  The long dotted-decimal string at the end is the SNMP OID – just a fancy way of representing a specific metric in SNMP.  You should see something like this:
+
+SNMPv2-SMI::enterprises.9.9.171.1.2.3.1.7.33942200 =
+    STRING: "10.20.3.1"
+SNMPv2-SMI::enterprises.9.9.171.1.2.3.1.7.92152968 =
+    STRING: "192.168.44.254"
+In this case, there are two site-to-site VPNs up: one to the peer with IP 10.20.3.1 and one to the peer with IP 192.168.44.254. If the peer IP for a configured tunnel isn’t listed here, it’s down!
+
+I wrote a simple “check” script for Nagios to make it easy to monitor (and receive Nagios alerts on) site-to-site VPN status. You need to install the script in your Nagios libexec directory, add a few lines to your checkcommands.cfg, and then you can monitor site-to-site VPN tunnels on an ASA with just a few arguments: SNMP community string, VPN peer IP address, and an optional friendly name added to Nagios reports.
+
+Interested in using it in your environment? Download check_asa_l2lvpn.pl from Monitoring Exchange and give it a try! Don’t be shy to ask questions in the comments below!
